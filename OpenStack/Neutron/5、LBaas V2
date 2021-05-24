@@ -1,0 +1,38 @@
+**LBaaS V1和V2区别**
+
+OpenStack中的网络服务通过neutron-lbaas service plugin提供了两种负载均衡器实现方案：
+
+LBaaS V1：Juno版本中引入（Liberty版本中弃用）
+
+LBaaS V2：kilo版本中引入
+
+LBaaS V1和LBaaS V2这2种实现都是使用代理。代理处理HAProxy配置和管理HAProxy守护进程。相对于LBaaS V1负载均衡器，LBaaS V2增加了listeners的概念。LBaaS V2允许在一个负载均衡器IPaddress上配置多个lintener ports。
+
+![img](8075d7c125724449b42ccd51f31146b2.jpg)
+
+LBaaS V2
+
+neutron包含负载均衡服务，即LBaaS。负载均衡器可以将用户的访问流量通过算法军谈到多台主机实例上，实现以Scale-out的方式扩容应用的性能。Neutron LBaaS 包含以下核心的概念：
+
+- 服务器池Pool：服务器池内包含了多个服务器成员，通一个池内的服务器至少包含一种统一的对外服务。
+- 服务器成员member：服务器成员，包含服务器的IP和端口。
+- 监听器Listener：监听器将持续监听指定的端口上的连接请求，一个负载均衡器中允许存在多个监听器，同时通过共享服务器池，多个监听器也可以关联到同一个服务器池。
+- 健康监控health monitor：检查服务器池中成员的状态，以及服务器的加入、离开。
+
+之所以称之为lbaas v2，是因为neutron的负载均衡的模型有过一次进化，在v2的版本中，neutron对负载均衡的架构有一次非常大的调整，v2版本变得更符合行业标准，且驱动和功能扩展变得更为简单，除此之外新版本还允许一个负载均衡器下添加多组listener监听服务，以及加入了TLS，LBaaS v2无法和LBaaS v1同时运行。
+
+改进后的LBaaS v2经过更为全面的测试，并且加入了更多的http层代理的特性，并开始支持active-standby部署模式，后续版本中将进一步支持Active-Active。
+
+**负载均衡概念**
+
+![img](00c8a2b9d7484fc1b644f33087e639f0.jpg)
+
+服务地址池 Pool
+
+服务地址池即后端一组提供服务的实例，每个成员都是一个IP地址+4层的端口。例如，常见的提供web服务的实例
+
+在Neutron中 LBaaS V2有两种实现方式：
+
+使用HAProxy作为负载均衡器，在网络节点上运行LBaaS agent，agent会完成节点上的HAProxy的创建和配置工作。
+
+使用Octavia作为负载均衡器，Octavia是在LBaaS V2中加入到Openstack中的。

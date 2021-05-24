@@ -1,0 +1,140 @@
+![img](4e10c01f580141579084b9854a42a6f4.jpg)
+
+上图是Octavia的架构，neutron原生集成了Octavia的驱动，可以直接通过neutron的接口来完成Octavia的管理。同时Octavia也支持独立工作，其拥有独立的数据库，租户的配置信息不仅会保存在neutron的数据库中，也会保存在Octavia的独立数据库中。（Octavia和neutron的数据库同步是一个较大的问题）
+
+Octavia 0.8版本中amphorae镜像是一台运行了HAproxy的ubuntu虚拟机，已经支持RH linux、Centos、Fedora。未来还将支持以容器和裸金属的方式部署。
+
+除此之外是Octavia的核心Controller，它包含4个组件：
+
+- API Controller：运行Octavia的API，并接受外部的调用申请，然后通过消息总线传给worker。
+- Controller Worker：负责执行API的各种操作，包括对nova、neutron接口的调用，以实现amphorae虚拟机的生命周期管理、创建端口、创建外部网络等资源。除此之外还有SSL证书、工作流等等功能管理。都由worker来一一实现。
+- Health manager：用于监控amphorae的运行状态，并执行amphorae的故障切换。
+- Housekeeping manager：用于删除无用的数据库记录，管理备用池和安全证书等。
+
+用户在openstack环境中创建负载均衡服务时，创建amphorae虚拟机、端口、安全组等操作，这些都是由Octavia controller自动完成，用户不可见，用户能见到的只有部署完成后的Octavia的配置项和对应的网络端口。
+
+Octavia的创建和配置命令与创建HAproxy的命令是完全一样的，配置好插件后Octavia API controller将执行neutron指令，并完成amphorae的创建和配置等工作。
+
+可见到Octavia项目目标是搭建一个完善的本地负载均衡管理平台，目前它是以虚拟机的方式提供服务，将来计划能够对云主机、容器、甚至裸机部署负载均衡服务，并支持active、active部署方式。
+
+![img](28da3a5c400f436788f2eecbf95ffe70.jpg)
+
+Octavia就是将用户的API请求经过逻辑处理，转换成HAProxy或者Nginx的配置参数，下发到amphora虚拟机中。
+
+Octavia的内部实现中，逻辑流程的处理主要使用TaskFlow库。
+
+LBaas：Load Balancing as a service，在openstack平台上，LB被作为一种提供给用户，用户可以按需获取可配置的业务负载分担方案。
+
+Loadbalancer：负载均衡服务的根对象，一般为虚拟机，用户基于此对负载均衡进行配置和操作。
+
+VIP：与LB关联的IP地址，作为外部访问后端服务的入口。
+
+Listener：监听器，用户可通过对其配置外部对VIP访问的端口，算法，类型等等。
+
+Pool：负责后端的虚拟机池，在HAProxy为driver的情况下，一个pool对应着一个独立的network namespace中运行的HAProxy进程中管理的backend。一个VIP只会有一个Pool。
+
+Member：Member对应的是pool里面处理网络请求的一个OpenStack Nova虚机。
+
+Health monitor：它用来检测pool里面的member的状态，支持很多种检测方法，在neutron里面是可选的。
+
+L7 policy：七层转发策略，描述数据包转发动作。
+
+L7 Rule：七层转发规则，描述数据包转发的匹配域。（匹配部分云主机）。
+
+基本概念之间的交互流程如下图：
+
+![img](f8b16a6f356e411bbf4e5211ac2ce43c.jpg)
+
+Amphora：负载均衡的载体，一般为云主机。（也可以使用物理机，将多个负载均衡配置到同一/两台Amphora节点上，提高数据包转发效率，但是有单点故障隐患）
+
+manage-network：管理网络，通常管理数据走这条线路，东侧连接Amphora，西侧连接Octavia服务进程。
+
+tenant-network：租户网络，内部通信使用，SLB转发报文通过租户网络到各个后端服务器上。
+
+VIP-network：服务地址，主要用于对外提供服务。（vip-net和tenant-net可以是同一个网络，但是在生产环境中建议分开，以便于更好得划分网络安全隔离。
+
+VM：后端服务器，用户的真实服务器。
+
+Health-manager：Octavia里面进行健康检查的进程，主要有一下两个作用：
+
+1、监听来自amphora虚拟机发来的运行状态数据，以此更新lb，listener，pool，member的状态，同时更新listener_statistics表（可作为计费依据），最重要的是更新amphora_health表。
+
+2、根据amphora_health数据表中的数据，找到异常状态的amphora虚拟机，对该虚拟机进行更换操作。（即删除旧的虚拟机，创新的虚拟机并下发配置）
+
+house-keeping：名副其实的Housekeeping（家政）服务，保障Octavia的健康运行。
+
+主要实现三个功能：
+
+SpareAmphora：清理虚拟机的池子，确保空闲的amphorae池大小。
+
+DatabaseCleanup：定期清理数据库中已删除的amphorae记录。
+
+CertRotation：定期更新amphorae中的证书。
+
+Octavia worker：负责完成API请求，是Octavia主干功能的执行者。
+
+主要作用是和nova，neutron等组件通信，用于虚拟机调度以及把对于虚拟机操作的指令下发给Octavia agent。
+
+基本流程如下：
+
+![img](faa7daf685614ab299bd7a27dcdd245a.jpg)
+
+主要流程：
+
+创建loadbalancer：现支持single和active standby（主备双活）两种模式的loadbalancer。P版本只支持single。
+
+创建loadbalancer的参数中可以指定vip绑定的port，如果没有指定，Octavia会自动（在API层）创建：
+
+普通创建lb时，在API层会创建lb和VIP的数据库记录，然后把请求交由worker处理。
+
+创建loadbalancer，Octavia会创建两个虚拟机（active standby）。
+
+如果配置enable_anti_affinity，则会针对这个lb先在Nova创建ServerGroup（这个ServerGroup的ID会记录在DB中），两个虚拟机就会创建在不同的host上。
+
+虚拟机的flavor、image、network、security group、keypair信息都是从配置文件中获取。
+
+有了虚拟机后，同时在入参的subnet下给两个虚拟机分别挂载网卡，并将VIP作为address pair配置到网卡。然后，向虚拟机发送REST API，参数中有VIP所在subnet的CIDR，网关IP，vrrp port的mac地址，vrrp port 的IP地址等信息。
+
+向amphora发送消息配置keepalived服务（active standby模式）
+
+至此，一个loadbalancer就创建结束了，基本上，后面创建listener、pool、member、health monitor，都是围绕这两个虚拟机，对HAProxy（nginx）和keepalived进程进行配置。在Octavia中，资源之间的映射管理如下：
+
+lb：就是两个管理员/租户的虚拟机
+
+listener：虚拟机里面的一个HAProxy（nginx）进程，frontend配置
+
+pool：HAProxy（nginx）配置中的一个backend
+
+member：backend配置中的一个member
+
+frontend指的是前端，定义一系列监听套字节，接收客户端请求：backend指的是后端，定义一系列后端服务器，请求转发。
+
+创建完lb，登录amphora验证创建lb后的网络配置，可以看到默认只能看到管理IP，只有在namespace中才看到vrrp网卡信息。
+
+amphora-agent启动脚本是Octavia repo中cmd目录下的agent.py。
+
+amphora-agent还做一件事。定时想health-monitor发送HAProxy的运行时信息，该信息是通过向HAProxy进程发送socket查询命令获取到。
+
+创建listener流程：
+
+在Octavia中，一个listener就对应amphora中的一个HAProxy进程。
+
+首先生成HAProxy配置文件，向amp发送信息。生成对应该listener的HAProxy服务脚本。
+
+再次向amphorae发送信息启动HAProxy服务：
+
+先确定listener的配置目录（/var/lib/octavia/{listener-id}/）在不在
+
+如果是active standby，更新keepalived对各个HAProxy的check脚本，
+
+/var/lib/octavia/vrrp/check_scripts/haproxy_check_script.sh
+
+启动haproxy服务，service haproxy-{listener_id} start
+
+创建pool
+
+创建 pool 的实现基本跟创建 listener 一致，在 amphorae 中仅仅是在 haproxy 的配置文件增加backend配置。
+
+添加 member 
+
+在添加 member 之前，amphorae 虚拟机上已经有管理 port 和 vrrp port，其中 vrrp port 在命名空间中。

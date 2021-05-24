@@ -1,0 +1,55 @@
+Neutron在实际部署时有三类节点，网络节点、计算节点、控制节点。
+
+![img](untitle.png)
+
+计算节点实现模型：
+
+- 计算节点中有多个VM虚拟机，一个计算节点就是一个host。计算节点中有虚拟的bridge，不同host的vm之间的二层通信是通过计算节点的bridge完成的。
+
+![img](untitle.png)
+
+- VM之间能跨Host通信，二层通信需要Bridge，三层需要位于网络通信节点的Router。
+
+![img](untitle.png)
+
+计算节点一共分为两层：
+
+- 用户网络层。指的是OpenStack的用户创建的网络（Host内部的“外部网络”），用户网络对应的Bridge是br-ethx（对应Flat、Vlan等非隧道型二层网络）或者br-tun（对应VXLAN、GRE等隧道型二层网络），其实现载体一般来说是OVS。用户网络层的功能是将用户网络与本地网络（Host内部的本地网络）进行相互转换，比如内外VLAN ID转换，VXLAN封装与解封装等。用户网络层是对本地网络层的一个屏蔽，不管用户网络采用什么技术（如VXLAN、GRE等），本地网络感知的仅仅是VLAN。
+- 本地网络，指的是Host内部的本地网络，本地网络再分为两层，qbr的实现载体是Linux Bridge，它仅仅是负责安全，所以称之为安全层。br-int的实现载体一般是OVS，它负责内部交换，所以称之为Bridge层。Bridge层是对VM层的一个屏蔽，从VM发出的Untag报文，被Bridge层转换为Tag报文转发到br-ethx/br-tun；从br-ethx/br-tun转发到br-int的Tag报文，被br-int剥去Tag，变成Untag报文，然后再转发给VM.
+
+位于同一个Host的本地网络中的不同VM之间的通信，它们经过本地网络层（即经过br-int）即可完成，不需要再往外走到用户网络层。
+
+网络节点实现模型：
+
+Neutron组网模型：
+
+- 第一层网关：计算节点中的VM需要访问internet，将网络节点作为第一层网关。
+- 第二层网关：网络节点通过DC物理网络中的交换机或路由器，到达DC网关。
+- DC网关再连接到internet。
+- （OpenStack Juno版本引入了DVR特性，DVR部署在计算节点上，计算节点通过DVR可直接访问internet）
+
+网络节点分为4层：用户网络层（为计算节点的VM提供DHCP Service、Routing Service等）、本地网络层、网络服务层、外部网络络层（主要包括将Routing对接到网络节点的物理网口的br-ex）。
+
+DHCP：
+
+- Neutron的DHCP Service 采用的是可提供dns、dhcp、tdtp等服务的轻量级服务进程——dnsmasq进程
+- 一个网络一个DHCP Service
+- Neutron采用namespace方法将多个dnsmasq进程隔离，一个DHCP Service运行在一个namespace中
+
+控制节点实现模型：
+
+计算节点与网络节点承担着OpenStack中网络构建的任务，实现网络功能的是两个节点中的各个Bridge、DHCP Service、Router等虚拟网元。控制节点中部署着OpenStack的各种进程，对各种虚拟网元做管理配合的工作。
+
+Neutron的控制功能不仅仅是体现在一个控制节点，在计算节点和网络节点中还有各种各样的Agent（代理商），控制节点中的Neutron进程只是Neutron控制系统的一部分。
+
+控制节点的Neutron进程通过RESTful 或者 CLI （Command Line Interface，命令行）接口接收外部请求，通过RPC与Agent进行交互。Neutron进程与各个Agent进程共同完成控制任务。
+
+neutron在openstack中起到什么作用？
+
+在openstack中neutron主要用于网络虚拟化，二层网络（falt、local、vlan、GRE、VXLAN、Provider Network（供应商网络）、tenant network（租户网络），虚拟交换机），三层路由，和防火墙，vlan隔离，LBaas（负载均衡），FWaas（防火墙即服务），VPNaas（虚拟专用网）。
+
+neutron是如何实现的虚拟机之间的通信？
+
+Host内通信，虚拟机使用tap连接qbr（Linux Bridge），VM和qbr之间可发送接收二层网包，qbr以veth pair连接br-int（集成网桥OVS）形成网桥之间的通信。再由br-int连接到目的虚拟机连接的qbr。
+
+跨Host通信，br-int连接到br-ethx，再将网络节点作为网关转发到目的虚拟机所在的Host内。

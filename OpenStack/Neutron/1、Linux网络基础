@@ -1,0 +1,76 @@
+**bridge : 网桥，Linux中用于表示一个能连接不同网络设备的虚拟设备，Linux中传统实现的网桥类似一个hub（集线器）设备，而ovs（OpenVswitch）管理的网桥一般类似交换机。**
+
+**NAT：网络地址转换（Network Address Translation），从一个IP地址转换为另一个IP地址。解决IP地址不够用的问题。**
+
+- 静态NAT（Static NAT）：私网IP地址与公网IP地址的转换规则是静态指定的，一个私网IP地址对应一个公网IP地址
+- 动态NAT：公网IP比私网IP地址少，私网与公网IP地址之间的转换规则不是静态指定的，而是动态匹配的
+- 端口多路复用/PAT：私网IP地址有多个，公网IP地址只有一个，以公网IP+端口号来区分私网IP
+- SNAT/DNAT：SNAT（Source Network Address Translation，源地址转换）与DNAT（Destination Network Address Translation，目的地址转换），网关将私有IP地址 转换为公网IP为SNAT，主要用于内部共享IP访问外部。网关代替内部服务接收外部的连接，再内部做地址转换，称为DNAT，主要用于内部服务对外发布。
+
+**br-int ： 集成网桥(bridge-integration)，常用于表示实现内外部网络功能的网桥。qbr与br-int都是Bridge，qbr实现载体的是Linux Bridge，br-int的实现载体是OVS。qbr与br-int之间通过veth pair连接，VM与qbr之间通过tap连接。VM先接qbr（Linux Bridge）再接br-int（OVS）。（qbr仅仅是一个Linux Bridge，它的功能不能满足实际场景的需求。br-int实际是一个OVS，它不支持iptables规则的安全组功能。）**
+
+**br-ethx：以太外部网桥（Bridge-Ethernet-External），也是一个Bridge，也是一个OVS，负责与Host外部通信，但要属于一个Network的内部。br-ethx与br-int之间的接口是veth pair。**
+
+**br-ex ： 外部网桥（bridge-external），通常表示负责跟外部网络通信的网桥。**
+
+**br-tun ：根据OpenFlow规则将VLAN标记的流量从集成网桥转换为隧道ID。隧道桥允许不同网络的实例彼此进行通信。隧道有利于封装在非安全网络上传输的流量，它支持两层网络，即GRE和VXLAN。**
+
+**Linux原生支持的三层隧道**
+
+- GRE ：通用路由封装（Generic Routing Encapsulation），定义了在任意一种网络层协议上封装任意一个其他网络层协议的协议，属于IPv4/IPv6 over IPv4。通过封装来实现隧道的方式。在OpenStack中一般是基于L3的gre，即original pkt/GRE/ip/Ethernet。
+- ipip：IP in IP，在IPv4报文的基础上再封装一个IPv4报文头，属于IPv4 in IPv4。
+- sit：跟ipip类似，只不过是用一个IPv4报文头封装IPv6的报文，属于IPv6 over IPv4。
+- vti：全称是Virtual Tunnel Interface，为IPsec隧道提供了一个可路由的接口类型。
+
+**VETH ：虚拟的ethernet接口，通常以pair的方式出现，一端发出的网包，会被另一端接收，可以形成两个网桥之间的通道。**
+
+**qvb：neutron veth,Linux Bridge-side**
+
+**qvo : neutron veth,OVS-side**
+
+**TAP设备：操作系统内核中的虚拟网络设备，对应以太网（ethernet）协议，模拟一个二层（数据链路层）的网络设备，可以接收和发送二层网包。**
+
+**数据链路层主要协议有：**
+
+- 1、点对点协议（Point-to-Point Protocol）
+- 2、以太网（Ethernet）
+- 3、高级数据链路协议（High-Level Data Link Protocol）
+- 4、帧中继（Frame Relay）
+- 5、异步传输模式（Asynchronous Transfer Mode）
+
+**TUN设备：操作系统内核中的虚拟网络设备，模拟一个三层（网络层）的点对点设备，启用了IP层隧道功能，可以接收和发送三层网包。**
+
+**iptables：Linux上常见的实现安全策略的防火墙软件。“通过iptables可以实现防火墙、NAT等功能”。内置三张表：filter、nat、mangle。filter、nat为了实现防火墙和nat功能而服务的。**
+
+**mangle主要应用在修改数据包内容上，用来做流量整形。**
+
+**Firewall：iptables中的Firewall（防火墙）网络防火墙概念，防火墙的规则是基于TCP/IP协议栈的规则。**
+
+- in-interface（入网络接口名），数据包从哪个网络口进入；
+- out-interface（出网络接口名），数据包从哪个网络接口输出；
+- potocol（协议类型），数据包的协议，如TCP、UDP和ICMP等；
+- source（源地址（或子网）），数据包的源IP地址（或子网）；
+- destination（目的地址（或子网）），数据包的目标IP地址（或子网）；
+- sport（源端口号），数据包的源端口号；
+- dport（目的端口号），数据包的目的端口号；
+
+**Linux内核空间Netfilter模块的NAT处理**
+
+| 流描述                              | Chain       | NAT类型 | NAT说明                                                      |
+| ----------------------------------- | ----------- | ------- | ------------------------------------------------------------ |
+| 流从外部到达Linux用户空间（私网IP） | PREROUTING  | DNAT    | 将目的IP从公网IP（Linux内核空间对应的IP转换到私网IP（Linux用户空间对应的IP） |
+| 流从Linux用户空间（私网IP）到达外部 | POSTROUTING | SNAT    | 将源IP从私网IP（Linux用户空间对应的IP）转换到公网IP（Linux内核空间对应的IP） |
+| 流从Linux内核空间（公网IP）到达外部 | OUTPUT      | DNAT    |                                                              |
+
+**Vlan：虚拟Lan，同一个物理Lan下用标签实现隔离，可用标号为1-4096。**
+
+**VXLAN：一套利用UDP协议作为底层传输协议的Overlay实现。一般认为作为Vlan技术的眼神或替代者。**
+
+**namespace：用来实现资源隔离的一套机制，将Linux全局资源编程namespace范围内的“全局资源”，不同namespace中的资源之间互不可见、彼此透明。namespace所隔离的资源有：**
+
+- uts_ns：UTS为Unix Timesharing System的简称，包含内存名称、版本、底层体系等结构信息
+- ipc_ns：所有与进程间通信（IPC）有关的信息
+- mnt_ns：当前加载的文件系统
+- pid_ns：有关进程ID的信息
+- user_ns：资源配额的信息
+- net_ns：网络信息

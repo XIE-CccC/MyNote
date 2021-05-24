@@ -1,0 +1,75 @@
+```python
+global
+        log 127.0.0.1 local0 info #[err warning info debug] //日志位置
+        maxconn 4096
+        uid 99    #所属运行的uid
+        gid 99    #所属运行的用户组
+        daemon #设置成后台运行
+        nbproc 1 #进程数量
+        pidfile /home/admin/haproxy/logs/haproxy.pid    #将所有进程谢雨pid文件
+
+defaults
+        log     global
+        log     127.0.0.1   local3   #日志文件的输出定向。产生的日志级别为local3，系统中local1-7。
+        mode    http #工作模式，所处理的类别，默认采用http模式，可配置成tcp作4层消息转发
+        option  httplog #http日志格式
+        option  dontlognull #不记录空链接，产生的日志
+        option  forwardfor #如果后端服务器需要获得客户端真实IP需要配置的参数，可以从http header中获得客户端IP
+        retries 3  #三次失败后认为服务器不可用
+        option  redispatch  #如果cookie写入了serverId而客户端不会刷新cookie，当serverId对应的服务器挂掉后，强制定向到其他健康的服务器
+        maxconn 2000 #当服务器负载很高的时候，自动结束掉当前队列处理比较久的链接默认的最大连接数
+        contimeout 5000 #连接超时
+        clitimeout 30000 #客户端超时
+        srvtimeout 30000 #服务器超时
+
+listen  localhost 192.168.1.125:80   #统计页面密码框上提示文本
+        mode http #http 模式
+        stats   uri  /haproxy     #统计页面
+#可通过192.168.1.125/haproxy来访问状态页面
+        balance roundrobin         #负载均衡算法
+        cookie  JSESSIONID prefix
+        stats   hide-version
+        option  httpclose
+        
+frontend http  #前端配置，http名称可自定义
+        bind 0.0.0.0:80 #发起http请求到80端口，会被转发到设置的ip及端口
+        default_backend http_back #转发到后端，后端名称
+        
+backend http_back  #后端配置，名称上下端关联
+        server web1 192.168.1.100:80 weight 3 check inter 2000 rise 2 fall 3 #后端主机的ip &权衡
+        server web2 192.168.1.101:80 weight 3 check inter 2000 rise 2 fall 3
+        server web3 192.168.1.102:80 weight 3 check inter 2000 rise 2 fall 3
+        server web4 192.168.1.103:80 weight 3 check inter 2000 rise 2 fall 3
+        #inter 2000  健康检查时间间隔2秒
+        #rise 2  检测多少次才认为是正常的
+        #fall 3  失败多少次才认为是不可用的
+        #weight  5 权重
+
+```
+
+haproxy内部有9种负载均衡算法
+
+```python
+1、roundrobin 
+基于权重进行轮询,在服务器的处理时间保持均匀分布时,这是最平衡,最公平的算法.此算法是动态的,这表示其权重可以在运行时进行调整.不过在设计上,每个后端服务器仅能最多接受4128个连接
+2、static-rr 
+基于权重进行轮叫,与roundrobin类似,但是为静态方法,在运行时调整其服务器权重不会生效.不过,其在后端服务器连接数上没有限制
+3、leastconn 
+新的连接请求被派发至具有最少连接数目的后端服务器.在有着较长时间会话的场景中推荐使用此算法,如LDAP、SQL等;其并不太适用于较短会话的应用层协议,如HTTP.此算法是动态的,可以在运行时调整其权重
+4、first 
+第一个具有可用连接槽的服务器得到连接.这些服务器将从最小到最大的id选择.一旦一个服务器到达它的最大连接数,下一个服务器将被使用.如果不定义每个服务器的maxconn参数,这个算法是无意义的.使用这个算法的目的是尽量使用最小数量的服务器以便于其他服务器可以在非密集时段待机.这个算法将忽略服务器权重
+5、source 
+将请求的源地址进行hash运算,并由后端服务器的权重总数相除后派发至某匹配的服务器.这可以使得同一个客户端IP的请求始终被派发至某特定的服务器.不过,当服务器权重总数发生变化时,如某服务器宕机或添加了新的服务器,许多客户端的请求可能会被派发至与此前请求不同的服务器.常用于负载均衡无cookie功能的基于TCP的协议.其默认为静态,不过也可以使用hash-type修改此特性
+6、uri 
+对URI的左半部分(“?”标记之前的部分)或整个URI进行hash运算,并由服务器的总权重相除后派发至某匹配的服务器.这可以使得对同一个URI的请求总是被派发至某特定的服务器,除非服务器的权重总数发生了变化.此算法常用于代理缓存或反病毒代理以提高缓存的命中率.需要注意的是,此算法仅应用于HTTP后端服务器场景.其默认为静态算法,不过也可以使用hash-type修改此特性
+7、url_param 
+通过< argument>为URL指定的参数在每个HTTP GET请求中将会被检索.如果找到了指定的参数且其通过等于号”=”被赋予了一个值,那么此值将被执行hash运算并被服务器的总权重相除后派发至某匹配的服务器.此算法可以通过追踪请求中的用户标识进而确保同一个用户ID的请求将被送往同一个特定的服务器,除非服务器的总权重发生了变化.如果某请求中没有出现指定的参数或其没有有效值,则使用轮叫算法对相应请求进行调度.此算法默认为静态的,不过其也可以使用hash-type修改此特性
+8、hdr(< name>) 
+对于每个HTTP请求,通过< name>指定的HTTP头部将会被检索.如果相应的首部没有出现或其没有有效值,则使用轮询算法对相应请求进行调度.其有一个可选选项”use_domain_only”,可在指定检索类似Host类的首部时仅计算域名部分(比如通过www.baidu.com来说,仅计算”baidu”字符串的hash值)以降低hash算法的运算量.此算法默认为静态的,可以使用hash-type修改此特性
+9、rdp-cookie(name)
+根据cookie(name)来锁定并哈希每一次TCP请求，可以修改hash-type、
+10、random
+使用随机数字作为一致性hash的键，server动态的改变会对权重有影响，适用于后台服务器变化较频繁的场景
+
+```
+

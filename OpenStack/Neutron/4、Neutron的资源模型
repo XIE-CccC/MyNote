@@ -1,0 +1,90 @@
+**Neutron资源的租户隔离：**
+
+在Neutron资源模型中，tenant_id就是为了多资源的用户隔离。但在云服务的物理资源中，数据中心、物理网络是必须要共享的，不能做到“租户隔离”（租户独占）。
+
+租户隔离有三种含义：
+
+- 管理面的隔离：指的是“管理权限”的隔离，当两个网络都是Neutron管理范围内，但是两个网络无法相互管理
+- 数据面的隔离：指的是数据转发的隔离。不用租户的网络之间，一般来说是不能互通的。
+- 故障面的隔离：（管理面的故障、数据面的故障）当一个租户网络的**路由器本身**出了问题，不应该影响其他租户的网络。
+
+Neutron在租户隔离中的无限责任和有限责任：
+
+Neutron在管理面的隔离、数据面的隔离两个层面必须承担无限责任（必须全面保证，如果没有达到隔离目标，必须要修改错误）。而在故障层面的隔离智能承担有限责任（智能在某些层面保证故障是隔离的，而不能全面保证到底是那些层面）。
+
+OpenStack是为云而服务的。
+
+**租户隔离实现方案：**
+
+数据面的租户隔离方案：Neutron在计算节点和网络节点都设计数据转发，所以也都设计数据转发的租户隔离。Neutron在管理面和数据面都提供了租户隔离的能力，它采取的方案包括“资源单租户独占方案”和“资源多租户共享方案”
+
+涉及租户网络隔离的组件有：
+
+- br-ethx/tun（1个）、br-int（1个）：用“多租户共享”的方案，来实现多租户隔离。（br-int、br-ethx通过VLAN来隔离各个租户数据流量，br-tun通过相应的tunnel来隔离各个租户网络的流量。
+- qbr（多个）：跟VM一一对应，用“单租户独占”的方案，来实现“多租户隔离”。qbr绑定了安全组，在原生的数据面租户隔离技术的基础上又叠加一层“安全层”来保证租户隔离。
+- router/dvr（多个）：跟租户相对应，每个Router/DVR运行在一个namespace中，属于“单租户独占”的方案来实现多租户隔离。
+
+管理面的租户隔离方案：
+
+对于管理面，租户隔离设计几个层面：
+
+硬件/操作系统层面，无租户隔离方案，管理面（控制节点）部署在一个Host，多个租户共享一个Host、一个操作系统。
+
+应用程序层面：无租户隔离方案，管理面（控制节点）上的各个服务，都是多租户共享。
+
+数据库层面，neutron采取第三种方案，租户隔离方案比较弱，方案一般有几种：1）独立数据库。2）共享数据库，独立表（不同的租户，不同的表，不同租户之间的表无关联）。3）共享数据库，共享表，通过表中的字段（tenant_id）来区分不同的租户。
+
+故障面的租户隔离方案：
+
+资源共享型方案没有任何故障面的租户隔离能力，一旦一个部件发生故障，所有与其关联的租户都要受到影响。
+
+资源独占型方案具有一定的故障面的租户隔离能力，一个租户的Router发生故障不会影响到其他租户。但是资源独占的粒度是有限的，也仅仅是在Router这样的层面才能做到租户资源独占。
+
+Neutron在故障面的目标不是租户隔离，而是尽量保证不受故障影响，对于管理面，Neutron采取高可用等方案以达到容错目的。
+
+**Network**
+
+network是Neutron的一个二层网络的资源模型，支持的网络类型有：主机内的网络类型（Local）、非隧道型网络（Flat、VLAN）、隧道型网络（VXLAN、GRE、Geneve）。
+
+| 名称                      | 类型    | 描述                                                         |
+| ------------------------- | ------- | ------------------------------------------------------------ |
+| admin_state_up            | boolean | Network的管理状态，如果为true，则表示up，如果为false，则表示down |
+| availability_zones_hints  | array   | 创建这个Network的时候，制定该Network的DHCP服务可以部署的AZ（Availability Zone）列表 |
+| availability_zones        | array   | 指明Network的DHCP实际部署在哪些AZ中                          |
+| created_at                | string  | Network的创建时间，格式是UTC ISO8601                         |
+| id                        | string  | 网络的ID。注意，这个ID与VLAN ID中的ID不是一个意思，这个是Neutron中标识一个Network的字符串 |
+| mtu                       | integer | 最大传输单元，是指一种通信协议的某一层所能通过的最大数据包的大小（以字节为单位）。对于IPv4而言，最小值是64；对于IPv6而言，最小值是1280。 |
+| name                      | string  | 网络的名称，为了方便的阅读和理解                             |
+| port_security_enabled     | boolean | 网络的端口安全状态，一个布尔值，true表示enabled，false表示disabled。port模型，也有同样一个字段。当创建一个Port时，这个字段的值，就是作为Port资源该字段的默认值 |
+| project_id                | string  | 项目ID                                                       |
+| provider:network_type     | string  | 网络类型，比如flat、vlan、vxlan、gre。具体哪些值有效，取决于网络背后的实现机制。 |
+| provider:physical_network | string  | 物理网络                                                     |
+| provider:segmentation_id  | integer | 物理网络进行分片（segment）后的segmentation id。具体含义取决于provider:network_type。比如network_type是vlan，那么segmentation id就代表vlan id；如果network_type是gre，那么segmentation id就代表gre key |
+| qos_policy_id             | string  | Network关联的QoS Policy的ID                                  |
+| router:external           | boolean | 标识这个Network是否是关联到路由器上的外部网络。              |
+| segments                  | array   | 一组运营商分片网络                                           |
+| shared                    | boolean | 标识Network是否可以被所有租户共享。默认情况下，只有管理员才可以修改这个值 |
+| status                    | string  | Network的状态，可能的值有：ACTIVE、DOWN、BUILD、ERROR        |
+| subnets                   | array   | Network关联的子网列表                                        |
+| tenant_id                 | string  | 项目ID                                                       |
+| updated_at                | string  | Network的修改时间，格式是UTC ISO8601                         |
+| vlan_transparent          | boolean | 标识Network的VLAN透传模式，是一个布尔值。true表示VLAN透传，false表示不透传 |
+| description               | string  | Network的描述信息，方便阅读和理解                            |
+
+**运营商网络和租户网络**
+
+由租户创建并且管理的网络，Neutron称之为租户网络。但是还有很多网络不在Neutron的管理范围内（Neutron称之为外部网路），这时候Neutron需要创建一个网络来映射这个外部网络，这个网络称之为运营商网络（Provider Network）
+
+运营商网络和租户网络主要区别：1）管理的权限与角色不同，租户创建的网络就是租户网络，运营商管理员创建的网络就是运营商网络。2）创建网络时，传入的参数不用。创建运营商网络时，需要传入provider:netwrok_type、provider:physical_netwrok、provider:segmentation_id三个参数，而创建租户网络时，没有办法传入这三个参数，它们是由OpenStack在管理员配置的范围内自动分配的。
+
+运营商网络与租户网络的创建方法：
+
+运营商网络需要与另一个网络相匹配，所以需要参数
+
+provider:net-work_type（用以匹配另一个网网络的网络类型）
+
+provider:segmentation_id（用以匹配另一个网络的网络segmentation ID）
+
+provider:physical_network（用以选择br-ethx）
+
+**物理网络**

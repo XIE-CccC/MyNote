@@ -1,0 +1,189 @@
+**OpenStack是什么**
+
+Openstack是开源云操作系统，可控制整个数据中心的大型计算，存储和网络资源池。用户能够够通过Web界面、命令行或API接口配置资源。
+
+![img](e76fdc7db0544107bc417d294065d73d.jpg)
+
+**OpenStack和虚拟化、云计算什么关系？**
+
+**OpenStack不是虚拟化**
+
+OpenStack的架构定位于技术范畴：
+
+- OpenStack只是系统的控制面。
+- OpenStack不包括系统的数据面组件，如Hypervisor、存储和网络设备等。
+
+OpenStack和虚拟化有着关键的区别：
+
+![img](3dde5657306e4f0085aa79c09cf86378.jpg)
+
+虚拟化是OpenStack底层的技术实现手段之一，但并非核心关注点。
+
+**OpenStack不是云计算**
+
+OpenStack只是构建云计算的关键组件：
+
+- 内核、骨干、框架、总线
+
+为了构建云计算，我们还需要很多东西：
+
+![img](2ed8a311b3354f64aef9737e3b7c861d.jpg)
+
+**OpenStack的设计思想**
+
+![img](057928b9abcb4979a601f268649e20be.jpg)
+
+- Apache 2.0 License
+- 约70%的代码（核心逻辑）使用Python开发
+
+关于Apache许可证的说明：
+
+- Apache许可证（英语：Apache License），是一个由Apache软件基金会发布的自由软件许可证，最初为Apache http服务器而撰写，Apache许可证要求被授权者保留著作权和放弃权利的声明，但它不是一个反著作权的许可证。
+- Apache许可证最新版本为“版本2”，于2004年1月发布。
+- Apache许可证在Apache社区内外被广泛使用。Apache基金会下属所有项目都使用Apache许可证，许多非Apache基金会项目也使用了Apache许可证：据统计，截至2012年10月，在SourceForge上有8707个项目使用了Apache许可证。
+
+**OpenStack历史版本**
+
+OpenStack每年两个大版本，一般在4月和10月中旬发布，版本命名从A-Z。
+
+![img](5e348598eed84e44830c6b9ed346533d.jpg)
+
+**OpenStack架构图**
+
+![img](d8a7567fd6a641bb926e15916040c684.jpg)
+
+粗体字标识为OpenStack核心服务。
+
+OpenStack的服务分为如下几大类：
+
+- 计算
+- 存储
+- 网络
+- 共用服务
+- 硬件生命周期
+- 编排
+- 工作流
+- 应用程序生命周期
+- API代理
+- 操作界面
+
+OpenStack服务组件通过消息队列（Message Queue）相互通信。
+
+OpenStack组件众多，重点关注计算、存储、网络服务组件。
+
+**OpenStack生产环境部署架构示例**
+
+![img](86a043e00fe24276879c8325613e905e.jpg)
+
+生产环境中，一般会有专门的OpenStack部署服务节点、控制节点、计算节点、网络节点和存储服务节点等。
+
+生产环境的控制节点建议三台以上，如果只是测试，OpenStack服务可以部署在单节点上。
+
+**OpenStack核心服务**
+
+**认证服务Keystone**
+
+- 首次出现在OpenStack的“Essex”版本中。
+- Keystone提供身份验证，服务发现和分布式多租户授权。
+- Keystone支持LDAP，OAuth，OpenID Connect，SAML和SQL。
+- 不依赖其他OpenStack服务，为其他OpenStack服务提供认证支持。
+
+LDAP：Lightweight Directory Access Protocol，轻量目录访问协议。
+
+OAuth：Open Authorization，为用户资源的授权提供了一个安全的、开放而又简易的标准。
+
+OpenID Connect是OpenID和Oauth2的合集
+
+SAML：Security Assertion Markup Language，安全断言标记语言，是一个基于XML的开源标准数据格式，它在当事方之间交换身份验证和授权数据，尤其是在身份提供者和服务提供者之间交换。
+
+**操作界面Horizon**
+
+- 首次出现在OpenStack的“Essex”版本中。
+- Horizon提供基于Web的控制界面，使云管理员和用户能够管理各种OpenStack资源和服务。
+- 依赖Keystone服务
+
+**镜像服务Glance**
+
+- 首次出现在OpenStack的“Bexar”版本中。
+- Glance提供发现、注册和检索虚拟机镜像功能。
+- Glance提供的虚拟机实例镜像可以存放在不同地方，例如本地文件系统、对象存储、块存储等。
+- 依赖的OpenStack服务：Keystone
+
+**计算服务Nova**
+
+- 首次出现在OpenStack的“Austin”版本中。
+- Nova提供大规模、可扩展、按需自助服务的计算资源。
+- Nova支持管理裸机，虚拟机和容器。
+- 依赖的OpenStack服务：Keystone、Neutron、Glance。
+
+**块存储服务Cinder**
+
+- 首次出现在OpenStack的“Folsom”版本中。
+- Cinder提供块存储服务，为虚拟机实例提供持久化存储。
+- Cinder调用不同存储接口驱动，将存储设备转化成块存储池，用户无需了解存储实际部署的位置或设备类型。
+- 依赖的OpenStack服务：Keystone。
+
+**对象存储服务Swift**
+
+- 首次出现在OpenStack的“Austin”版本中。
+- Swift提供高度可用、分布式、最终一致的对象存储服务。
+- Swift可以高效、安全且廉价地存储大量数据。
+- Swift非常适合存储需要弹性扩展的非结构化数据。
+- 依赖的OpenStack服务：为其他OpenStack服务提供对象存储服务。
+
+**网络服务Neutron**
+
+- 首次出现在OpenStack的“Folsom”版本中。
+- Neutron负责管理虚拟网络组件，专注于为OpenStack提供网络即服务。
+- 依赖的OpenStack服务：Keystone。
+
+**编排服务Heat**
+
+- 首次出现在OpenStack的“Havana”版本中。
+- Heat为云应用程序编排OpenStack基础架构资源。
+- Heat提供OpenStack原生Reat API和CloudFormation兼容的查询API。
+- 依赖的OpenStack服务：Keystone。
+
+**OpenStack服务间交互示例**
+
+OpenStack创建VM，服务间交互：
+
+![img](5e405ef90d084ba3b0b6ecf68b1d1578.jpg)
+
+OpenStack的核心工作之一是虚拟机生命周期管理。
+
+虚拟机实例创建时，各OpenStack服务协调工作，完成任务。
+
+登录界面或命令行通过RESTful API向keystone获取认证信息。
+
+![img](1266de8e6498483dafe93927f6187a49.jpg)
+
+![img](29bccf0a552841b9a6835bda8246c518.jpg)
+
+1. keystone通过用户请求认证信息，并生成auth-token返回给对应的认证请求。
+2. 界面或命令行通过RESTful API向nova-api发送一个boot instance的请求（携带auth-token）。
+3. nova-api接受请求后向keystone发送认证请求，查看token是否为有效用户和token。
+4. keystone验证token是否有效，如有效则返回有效的认证和对应的角色（注：有些操作需要有角色权限才能操作）。
+5. 通过认证后nova-api和数据库通讯。
+6. 初始化新建虚拟机的数据库记录。
+7. nova-api通过rpc.call向nova-scheduler请求是否有创建虚拟机的资源(Host ID)。
+8. nova-scheduler进程侦听消息队列，获取nova-api的请求。
+9. nova-scheduler通过查询nova数据库中计算资源的情况，并通过调度算法计算符合虚拟机创建需要的主机。
+10. 对于有符合虚拟机创建的主机，nova-scheduler更新数据库中虚拟机对应的物理主机信息。
+11. nova-scheduler通过rpc.cast向nova-compute发送对应的创建虚拟机请求的消息。
+12. nova-compute会从对应的消息队列中获取创建虚拟机请求的消息。
+13. nova-compute通过rpc.call向nova-conductor请求获取虚拟机消息。（Flavor）
+14. nova-conductor从消息队队列中拿到nova-compute请求消息。
+15. nova-conductor根据消息查询虚拟机对应的信息。
+16. nova-conductor从数据库中获得虚拟机对应信息。
+17. nova-compute从对应的消息队列中获取虚拟机信息消息。
+18. nova-compute通过keystone的RESTfull API拿到认证的token，并通过HTTP请求glance-api获取创建虚拟机所需要镜像。
+19. glance-api向keystone认证token是否有效，并返回验证结果。
+20. token验证通过，nova-compute获得虚拟机镜像信息(URL)。
+21. nova-compute通过keystone的RESTfull API拿到认证k的token，并通过HTTP请求neutron-server获取创建虚拟机所需要的网络信息。
+22. neutron-server向keystone认证token是否有效，并返回验证结果。
+23. token验证通过，nova-compute获得虚拟机网络信息。
+24. nova-compute通过keystone的RESTfull API拿到认证的token，并通过HTTP请求cinder-api获取创建虚拟机所需要的持久化存储信息。
+25. cinder-api向keystone认证token是否有效，并返回验证结果。
+26. token验证通过，nova-compute获得虚拟机持久化存储信息。
+27. nova-compute根据instance的信息调用配置的虚拟化驱动来创建虚拟机。
