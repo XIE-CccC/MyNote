@@ -1,16 +1,16 @@
 Neutron在实际部署时有三类节点，网络节点、计算节点、控制节点。
 
-![img](untitle.png)
+![img](assets/untitle-1621858714387.png)
 
 计算节点实现模型：
 
 - 计算节点中有多个VM虚拟机，一个计算节点就是一个host。计算节点中有虚拟的bridge，不同host的vm之间的二层通信是通过计算节点的bridge完成的。
 
-![img](untitle.png)
+![img](assets/untitle-1621858714388.png)
 
 - VM之间能跨Host通信，二层通信需要Bridge，三层需要位于网络通信节点的Router。
 
-![img](untitle.png)
+![img](assets/untitle-1621858714392.png)
 
 计算节点一共分为两层：
 

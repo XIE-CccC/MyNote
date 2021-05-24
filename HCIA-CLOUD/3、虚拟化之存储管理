@@ -2,28 +2,28 @@
 
 RAID0：条带化磁盘阵列，提高性能。由大于2个磁盘组成，分片式存储，同时将数据存储进所有磁盘。
 
-![img](clipboard.png)
+![img](assets/clipboard.png)
 
 RAID1：镜像备份，提供冗余，由2*n个磁盘组成，存储进磁盘的数据会实时进行热备份。
 
-![img](clipboard.png)
+![img](assets/clipboard.png)
 
 RAID3：带奇偶校验条带化，至少由3块磁盘组成，提升性能，提供冗余，由两块以上磁盘做分片存储，一块磁盘存储奇偶校验数据。校验盘使用率高，校验盘读写速率成为磁盘阵列读写数据瓶颈，可以允许同时损害任意一块磁盘。
 
-![img](clipboard.png)
+![img](assets/clipboard.png)
 
 RAID5：分布式奇偶校验条带化，校验位分布在每一个磁盘上，将校验盘读写压力分摊在每一个磁盘上。只允许同时损坏任意一个磁盘。当更改一个磁盘上的数据时，产生写惩罚，需要重新校验。
 
-![img](clipboard.png)
+![img](assets/clipboard.png)
 
 RAID6：分布式双份奇偶校验条带化，校验位分布在两块硬盘上。提高容错率。
 
-![img](clipboard.png)
+![img](assets/clipboard.png)
 
 RAID10：既有RAID1镜像功能，又有RAID0条带分片存储功能，至少由4（2*n）块硬盘组成。
 
-![img](clipboard.png)
+![img](assets/clipboard.png)
 
 RAID50：既有RAID5的分布式奇偶校验条带化，又有RAID0分片式存储，最少需要6块磁盘。
 
-![img](clipboard.png)
+![img](assets/clipboard.png)

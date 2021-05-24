@@ -3,26 +3,30 @@ VLAN ID转换实现模型：
 - Vlan ID存在内外之别，这个内外之别需要做VLAN ID 转换，转换的功能由Host内相应的Bridge来实现。
 - 出报文VLAN ID转换过程中，报文从VM传输到br-int时Untag（无标签），进入br-int时被打上内层VLAN ID 标签，再进入br-ethx时内层VLAN ID转换为外层VLAN ID。
 
+![img](../../../../笔记/qqACF776FE9DDABD07F26F4E99499C0E68/bf1d2c2b2e174adf97d771a6bc84be81/bsl9`zm9)7am907tc9%1r44.png)
+
 - 入报文VLAN ID转换过程中，外层VLAN ID出br-ethx时，外层VLAN ID转换为内层VLAN ID，当报文出br-int时被剥掉标签变成Untag报文。
 
+![img](../../../../笔记/qqACF776FE9DDABD07F26F4E99499C0E68/19a764b946004aa7b6d7e78fb980f440/t130{@syox]bv`b0(reb$jj.png)
 
-
-![img](2、VID转换实现模型.assets/untitle-1621856467477.png)
+![img](assets/untitle.png)
 
 VXLAN ID转换实现模型：
 
 - VLAN中对应的br-ethx在VXLAN中对应的是br-tun（Bridge-Tunnel）此时这个Tunnel是VXLANTunnel。br-tun也是一个OVS，br-ethx所执行的是一个普通二层交换机的功能，br-tun所执行的是VXLAN中VTEP（VXLAN Tunneling End Point，VXLAN隧道终结点）的功能。
 - 出报文时，报文从VM传输到br-int时是Untag报文，当进入br-int时报文被打上VLAN ID标签，当报文从br-tun传出时VLAN ID转换为VXLAN ID。
 
+![img](../../../../笔记/qqACF776FE9DDABD07F26F4E99499C0E68/832f19450408450e87c2d39692510e6f/o_(v~10ryqo[}7j5ld2j{zi.png)
+
 - 入报文时，报文进入br-tun时VXLAN ID被转换为VLAN ID，当报文传出br-int时被剥掉标签变成Untag报文。
 
+![img](../../../../笔记/qqACF776FE9DDABD07F26F4E99499C0E68/6fbf4172b638445b9e3a1f006690723d/p$i[fha)u`9g5gz7{pypy~t.png)
 
-
-![img](2、VID转换实现模型.assets/untitle-1621856467477.png)
+![img](assets/untitle.png)
 
 GRE的实现模型与VXLAN的实现模型相同，不同的是，VXLAN的br-tun构建的是VXLAN Tunnel，而GRE的br-tun构建的是GRE Tunnel。
 
-![img](2、VID转换实现模型.assets/untitle-1621856467477.png)
+![img](assets/untitle.png)
 
 VLAN：Virtual Local Area Network 虚拟局域网，解决同一链路层网络广播域隔离。
 

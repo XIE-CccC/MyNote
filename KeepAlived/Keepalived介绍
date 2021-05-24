@@ -8,11 +8,11 @@ LVS：Linux Vritual Server 虚拟服务器是一个高可扩展性和高可用�
 
 最底层的数据共享存储层，用Shared Storage表示，为所有Real Server提供共享存储空间和内容一致性的存储区域，在物理上，一般有磁盘阵列设备组成，为了提供内容的一致性，一般可以通过NFS网络文件系统共享数据，oracle提供的OCFS2文件系统等。
 
-![img](clipboard.png)
+![img](assets/clipboard.png)
 
 LVS的基本工作原理：
 
-![img](clipboard.png)
+![img](assets/clipboard.png)
 
 1. 当用户负载均衡调度器（Director Server）发送请求，调度器将请求发送至内核空间
 2. PREROUTING链首先会接收到用户请求，判断目标IP确定是本机IP，将数据包发往INPUT链
@@ -56,7 +56,7 @@ high-availability（高可用）：通过VRRP协议实现多台及其之间的�
 
 软件结构如下：
 
-![img](f39d15563ed34809a6036dc3ffeec5d6.jpg)
+![img](assets/f39d15563ed34809a6036dc3ffeec5d6.jpg)
 
 内核空间：主要包括IPVS（IP虚拟服务器，用于实现网络服务的负载均衡）和NETLINK（提供高级路由及其他相关网络功能）
 

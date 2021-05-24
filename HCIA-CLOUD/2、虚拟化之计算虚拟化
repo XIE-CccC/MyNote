@@ -1,10 +1,10 @@
 UMA一致性内存访问
 
-![img](c6ffb63c9cf0434fbfa71c6d88f68b2c.jpg)
+![img](assets/c6ffb63c9cf0434fbfa71c6d88f68b2c.jpg)
 
 NUMA非一致性内存访问
 
-![img](aec2f247131f4027ae3c8b37d703f796.jpg)
+![img](assets/aec2f247131f4027ae3c8b37d703f796.jpg)
 
 **一、计算虚拟化**
 
